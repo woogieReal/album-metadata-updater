@@ -43,11 +43,11 @@
 
 ## Phase 3. AlbumTagApp (메인 앱 클래스) 구현
 
-- [ ] `textual.app.App` 기반 `AlbumTagApp` 클래스 작성
-- [ ] 앱 전역 상태 관리 속성 정의
+- [X] `textual.app.App` 기반 `AlbumTagApp` 클래스 작성
+- [X] 앱 전역 상태 관리 속성 정의
   - 선택된 폴더 경로
   - 체크된 MP3 파일 목록
-- [ ] 초기 화면을 `ExplorerScreen`으로 설정
+- [X] 초기 화면을 `ExplorerScreen`으로 설정
 
 ---
 
