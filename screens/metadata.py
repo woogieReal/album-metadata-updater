@@ -7,6 +7,8 @@ from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Input, Label
 
+from services.metadata_service import MetadataService
+
 
 FIELD_CBS = ["cb-album", "cb-artist", "cb-year", "cb-title", "cb-track-number"]
 
@@ -48,6 +50,7 @@ class MetadataScreen(Screen):
         super().__init__()
         self.selected_files = selected_files
         self._syncing = False
+        self._service = MetadataService()
 
     def compose(self) -> ComposeResult:
         yield Container(
@@ -131,4 +134,42 @@ class MetadataScreen(Screen):
         if event.button.id == "close-btn":
             self.app.pop_screen()
         elif event.button.id == "save-btn":
-            pass  # Phase 6에서 구현
+            self._apply_metadata()
+
+    def _apply_metadata(self) -> None:
+        cb = lambda id: self.query_one(f"#{id}", Checkbox).value
+        val = lambda id: self.query_one(f"#{id}", Input).value.strip()
+
+        # 트랙번호 순번 미리 계산
+        track_map = {
+            path: num
+            for path, num in self._service.assign_track_numbers(self.selected_files)
+        }
+
+        failed = []
+        for filepath in self.selected_files:
+            tags = {}
+            if cb("cb-album"):
+                tags["album"] = val("input-album")
+            if cb("cb-artist"):
+                tags["artist"] = val("input-artist")
+            if cb("cb-year"):
+                tags["year"] = val("input-year")
+            if cb("cb-title"):
+                tags["title"] = self._service.clean_track_title(
+                    Path(filepath).name
+                )
+            if cb("cb-track-number"):
+                tags["track_number"] = track_map[filepath]
+
+            if tags and not self._service.write_tags(filepath, tags):
+                failed.append(Path(filepath).name)
+
+        if failed:
+            self.app.notify(
+                f"{len(failed)}개 파일 수정 실패: {', '.join(failed)}",
+                severity="error",
+            )
+        else:
+            self.app.notify("메타데이터 수정 완료!")
+            self.app.pop_screen()
