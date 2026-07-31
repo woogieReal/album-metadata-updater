@@ -27,14 +27,14 @@ class ExplorerScreen(Screen):
 
     def __init__(self) -> None:
         super().__init__()
-        self._current_dir: str = "/"
+        self._current_dir: str = str(Path.cwd())
         self._mp3_files: List[Path] = []
         self._in_file_mode: bool = False
         self._syncing: bool = False
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Container(DirectoryTree("/"), id="tree-container")
+        yield Container(DirectoryTree(Path.cwd()), id="tree-container")
         yield ScrollableContainer(id="file-list-container")
         yield Container(
             Button("현재 폴더 사용하기", id="action-btn", variant="primary"),
@@ -94,6 +94,11 @@ class ExplorerScreen(Screen):
         if not selected:
             self.app.notify("파일을 하나 이상 선택해 주세요.", severity="warning")
             return
+
+        self.query_one("#tree-container").display = True
+        self.query_one("#file-list-container").display = False
+        self.query_one("#action-btn", Button).label = "현재 폴더 사용하기"
+        self._in_file_mode = False
 
         self.app.selected_folder = self._current_dir
         self.app.selected_files = selected
