@@ -140,6 +140,10 @@ class MetadataScreen(Screen):
         cb = lambda id: self.query_one(f"#{id}", Checkbox).value
         val = lambda id: self.query_one(f"#{id}", Input).value.strip()
 
+        if not any(cb(cb_id) for cb_id in FIELD_CBS):
+            self.app.notify("수정할 항목을 하나 이상 선택해 주세요.", severity="warning")
+            return
+
         # 트랙번호 순번 미리 계산
         track_map = {
             path: num

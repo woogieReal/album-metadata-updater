@@ -61,6 +61,10 @@ class ExplorerScreen(Screen):
             key=lambda f: f.name,
         )
 
+        if not self._mp3_files:
+            self.app.notify("선택한 폴더에 MP3 파일이 없습니다.", severity="warning")
+            return
+
         file_list = self.query_one("#file-list-container", ScrollableContainer)
         file_list.remove_children()
         file_list.mount(Checkbox("전체 선택/해제", value=True, id="select-all"))
@@ -86,6 +90,11 @@ class ExplorerScreen(Screen):
             for i in range(len(self._mp3_files))
             if self.query_one(f"#file-{i}", Checkbox).value
         ]
+
+        if not selected:
+            self.app.notify("파일을 하나 이상 선택해 주세요.", severity="warning")
+            return
+
         self.app.selected_folder = self._current_dir
         self.app.selected_files = selected
         self.app.push_screen(MetadataScreen(selected))
