@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import List
 
@@ -34,12 +35,56 @@ class ExplorerScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Container(DirectoryTree(Path.cwd()), id="tree-container")
+        yield Container(DirectoryTree(Path.home()), id="tree-container")
         yield ScrollableContainer(id="file-list-container")
         yield Container(
             Button("현재 폴더 사용하기", id="action-btn", variant="primary"),
             id="bottom-bar",
         )
+
+    def on_mount(self) -> None:
+        self.set_timer(0.3, self._expand_to_cwd)
+
+    async def _expand_to_cwd(self) -> None:
+        cwd = Path(self._current_dir)
+        home = Path.home()
+        try:
+            parts = list(cwd.relative_to(home).parts)
+        except ValueError:
+            return
+
+        tree = self.query_one(DirectoryTree)
+        node = tree.root
+        node.expand()
+
+        for part in parts:
+            # wait up to 3s for the children of the current node to load
+            for _ in range(30):
+                await asyncio.sleep(0.1)
+                names = [
+                    Path(c.data.path).name
+                    for c in node.children
+                    if c.data and hasattr(c.data, "path")
+                ]
+                if part in names:
+                    break
+
+            target = next(
+                (
+                    c
+                    for c in node.children
+                    if c.data and hasattr(c.data, "path") and Path(c.data.path).name == part
+                ),
+                None,
+            )
+            if target is None:
+                return
+
+            node = target
+            node.expand()
+
+        tree.select_node(node)
+        tree.scroll_to_node(node, animate=False)
 
     def on_directory_tree_directory_selected(
         self, event: DirectoryTree.DirectorySelected
