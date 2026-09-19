@@ -3,14 +3,19 @@ from pathlib import Path
 from typing import List
 
 from textual.app import ComposeResult
-from textual.containers import Container, ScrollableContainer
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.screen import Screen
-from textual.widgets import Button, Checkbox, DirectoryTree, Header
+from textual.widgets import Button, Checkbox, DirectoryTree, Footer, Header
 
 from screens.metadata import MetadataScreen
 
 
 class ExplorerScreen(Screen):
+
+    BINDINGS = [
+        Binding("r", "refresh", "새로고침"),
+    ]
 
     CSS = """
     #tree-container {
@@ -23,6 +28,12 @@ class ExplorerScreen(Screen):
     #bottom-bar {
         height: 3;
         align: center middle;
+    }
+    #bottom-bar Button {
+        margin: 0 1;
+    }
+    #back-btn {
+        display: none;
     }
     """
 
@@ -37,10 +48,13 @@ class ExplorerScreen(Screen):
         yield Header()
         yield Container(DirectoryTree(Path.home()), id="tree-container")
         yield ScrollableContainer(id="file-list-container")
-        yield Container(
+        yield Horizontal(
+            Button("새로고침", id="refresh-btn"),
+            Button("폴더 다시 선택", id="back-btn"),
             Button("현재 폴더 사용하기", id="action-btn", variant="primary"),
             id="bottom-bar",
         )
+        yield Footer()
 
     def on_mount(self) -> None:
         self.set_timer(0.3, self._expand_to_cwd)
@@ -91,15 +105,40 @@ class ExplorerScreen(Screen):
     ) -> None:
         self._current_dir = str(event.path)
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    async def action_refresh(self) -> None:
+        await self._refresh()
+
+    async def _refresh(self) -> None:
+        if not self._in_file_mode:
+            tree = self.query_one(DirectoryTree)
+            await tree.reload()
+            self.notify("파일 트리를 새로고침했습니다.")
+        else:
+            await self._show_file_list()
+            self.notify("파일 목록을 새로고침했습니다.")
+
+    def _back_to_tree(self) -> None:
+        self.query_one("#tree-container").display = True
+        self.query_one("#file-list-container").display = False
+        self.query_one("#action-btn", Button).label = "현재 폴더 사용하기"
+        self.query_one("#back-btn", Button).display = False
+        self._in_file_mode = False
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "refresh-btn":
+            await self._refresh()
+            return
+        if event.button.id == "back-btn":
+            self._back_to_tree()
+            return
         if event.button.id != "action-btn":
             return
         if not self._in_file_mode:
-            self._show_file_list()
+            await self._show_file_list()
         else:
             self._go_to_metadata()
 
-    def _show_file_list(self) -> None:
+    async def _show_file_list(self) -> None:
         folder = Path(self._current_dir)
         self._mp3_files = sorted(
             [f for f in folder.iterdir() if f.is_file() and f.suffix.lower() == ".mp3"],
@@ -107,18 +146,22 @@ class ExplorerScreen(Screen):
         )
 
         if not self._mp3_files:
-            self.app.notify("선택한 폴더에 MP3 파일이 없습니다.", severity="warning")
+            self.notify("선택한 폴더에 MP3 파일이 없습니다.", severity="warning")
+            if self._in_file_mode:
+                self._back_to_tree()
             return
 
         file_list = self.query_one("#file-list-container", ScrollableContainer)
-        file_list.remove_children()
-        file_list.mount(Checkbox("전체 선택/해제", value=True, id="select-all"))
+        await file_list.remove_children()
+        checkboxes = [Checkbox("전체 선택/해제", value=True, id="select-all")]
         for i, mp3 in enumerate(self._mp3_files):
-            file_list.mount(Checkbox(mp3.name, value=True, id=f"file-{i}"))
+            checkboxes.append(Checkbox(mp3.name, value=True, id=f"file-{i}"))
+        await file_list.mount_all(checkboxes)
 
         self.query_one("#tree-container").display = False
         file_list.display = True
         self.query_one("#action-btn", Button).label = "설정할 메타데이터 고르기"
+        self.query_one("#back-btn", Button).display = True
         self._in_file_mode = True
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
@@ -137,13 +180,10 @@ class ExplorerScreen(Screen):
         ]
 
         if not selected:
-            self.app.notify("파일을 하나 이상 선택해 주세요.", severity="warning")
+            self.notify("파일을 하나 이상 선택해 주세요.", severity="warning")
             return
 
-        self.query_one("#tree-container").display = True
-        self.query_one("#file-list-container").display = False
-        self.query_one("#action-btn", Button).label = "현재 폴더 사용하기"
-        self._in_file_mode = False
+        self._back_to_tree()
 
         self.app.selected_folder = self._current_dir
         self.app.selected_files = selected
