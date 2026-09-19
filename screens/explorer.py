@@ -52,6 +52,7 @@ class ExplorerScreen(Screen):
             Button("새로고침", id="refresh-btn"),
             Button("폴더 다시 선택", id="back-btn"),
             Button("현재 폴더 사용하기", id="action-btn", variant="primary"),
+            Button("앱 재시작", id="restart-btn"),
             id="bottom-bar",
         )
         yield Footer()
@@ -130,6 +131,9 @@ class ExplorerScreen(Screen):
             return
         if event.button.id == "back-btn":
             self._back_to_tree()
+            return
+        if event.button.id == "restart-btn":
+            self.app.action_restart_app()
             return
         if event.button.id != "action-btn":
             return
