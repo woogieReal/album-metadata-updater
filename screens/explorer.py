@@ -123,6 +123,8 @@ class ExplorerScreen(Screen):
         self.query_one("#file-list-container").display = False
         self.query_one("#action-btn", Button).label = "현재 폴더 사용하기"
         self.query_one("#back-btn", Button).display = False
+        self.query_one("#refresh-btn", Button).display = True
+        self.query_one("#restart-btn", Button).display = True
         self._in_file_mode = False
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -166,6 +168,8 @@ class ExplorerScreen(Screen):
         file_list.display = True
         self.query_one("#action-btn", Button).label = "설정할 메타데이터 고르기"
         self.query_one("#back-btn", Button).display = True
+        self.query_one("#refresh-btn", Button).display = False
+        self.query_one("#restart-btn", Button).display = False
         self._in_file_mode = True
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
